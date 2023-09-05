@@ -2,6 +2,8 @@
 const path = require('path')
 // 合并两个配置对象   npm i webpack-merge -D
 const {merge} = require('webpack-merge')
+const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin')
+
 const baseConfig = require('./webpack.base.js')
 
 
@@ -21,5 +23,9 @@ module.exports = merge(baseConfig, {
         static: {
             directory: path.resolve(__dirname, '../public') // 压缩并托管静态文件
         }
-    }
+    },
+
+    plugins:[
+        new ReactRefreshWebpackPlugin()
+    ]
 }) 

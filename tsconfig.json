@@ -1,19 +1,37 @@
 {
     "compilerOptions": {
-      "target": "ESNext",
-      "lib": ["DOM", "DOM.Iterable", "ESNext"],
-      "allowJs": false,
-      "skipLibCheck": false,
-      "esModuleInterop": false,
-      "allowSyntheticDefaultImports": true,
-      "strict": true,
-      "forceConsistentCasingInFileNames": true,
-      "module": "ESNext",
-      "moduleResolution": "Node",
-      "resolveJsonModule": true,
-      "isolatedModules": true,
-      "noEmit": true,
-      "jsx": "react", // react18这里也可以改成react-jsx
+        "target": "ESNext",
+        "lib": [
+            "DOM",
+            "DOM.Iterable",
+            "ESNext"
+        ],
+        "allowJs": false,
+        "skipLibCheck": false,
+        "esModuleInterop": false,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
+        "module": "ESNext",
+        "moduleResolution": "Node",
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "jsx": "react", // react18这里也可以改成react-jsx
+        "experimentalDecorators": true, // 开启装饰器支持
+        
+        "baseUrl": ".",  //用于设置解析非相对模块名称的基本目录
+        "paths": { //用于设置模块名到基于 baseUrl 的路径映射,与baseUrl搭配，基于baseUrl
+            "@/*": [
+                "src/*"
+            ]
+        }
     },
-    "include": ["./src"]
-  }
+    // 指定ts要解析的路径文件
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.d.ts",
+        "src/**/*.tsx",
+        "src/**/*.jsx"
+    ]
+}

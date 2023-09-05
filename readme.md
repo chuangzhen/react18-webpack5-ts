@@ -250,24 +250,449 @@ module.exports = merge(baseConfig, {
 ### 3.webpack常用基础功能配置
 
 ##### 3.1 配置环境变量
+``` javascript
+// npm i cross-env -D  
+// 搭配 webpack.DefinePlugin 将环境变量注入到代码中
+
+// package.json   
+"scripts":{
+    "dev:dev":"cross-env NODE_ENV=development BASE_ENV=development webpack-dev-server -c build/webpack.dev.js ",
+    "dev:test":"cross-env NODE_ENV=development BASE_ENV=test webpack-dev-server -c build/webpack.dev.js ",
+    "dev:pre":"cross-env NODE_ENV=development BASE_ENV=pre webpack-dev-server -c build/webpack.dev.js ",
+    "dev:prod":"cross-env NODE_ENV=development BASE_ENV=production webpack-dev-server -c build/webpack.dev.js ",
+
+    "build:dev":"cross-env NODE_ENV=production BASE_ENV=development webpack -c build/webpack.prod.js ",
+    "build:test":"cross-env NODE_ENV=production BASE_ENV=test webpack -c build/webpack.prod.js ",
+    "build:pre":"cross-env NODE_ENV=production BASE_ENV=pre webpack -c build/webpack.prod.js ",
+    "build:prod":"cross-env NODE_ENV=production BASE_ENV=production webpack -c build/webpack.prod.js "
+
+    // NODE_ENV 区分是开发环境还是生产环境   BASE_ENV 区分是哪个环境的api及其他变量
+}
+
+```
+
+```javascript
+// webpack.base.js
+// 要转成json字符粗,再注入环境变量到全局环境变量process.env.xxx里,
+    new webpack.DefinePlugin({
+        "process.env.NODE_EVN": JSON.stringify(process.env.NODE_ENV),
+        "process.env.BASE_ENV": JSON.stringify(process.env.BASE_ENV)
+    })
+
+    // 这样就可以在页面内里通过 process.env.NODE_ENV/BASE_ENV 访问到注入的环境变量的值了
+```
 
 ##### 3.2 处理css 和 less 或者scss 文件
+*   添加App.css App.less 文件,若干样式，在App.tsx 引入,
+```javascript
+// 出现如下报错等
+ERROR in ./src/App.less 1:0
+Module parse failed: Unexpected token (1:0)
+You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders> .h3{
+|     font-size: 30px;
+|     font-weight: bold;
+ @ ./src/App.tsx 3:0-20
+ @ ./src/index.tsx 3:0-24 7:60-63
+```
+*   webpack 默认只识别js，识别不了css和less，需要对应的loader来解析css和less
+*   npm i style-loader css-loader  less-loader less -D
+```javascript
+// webpack.base.js
+module:{
+    rules:[
+        //...
+        
+        // 解析less css
+        // 将less转换成css,再将css转换成style样式注入html中的style标签
+        {
+            test: /.(less|css)$/,
+            use: [
+                'style-loader',
+                'css-loader',
+                {
+                    loader: 'postcss-loader',
+                    options: {
+                        postcssOptions: {
+                            plugins: [
+                                [
+                                    'autoprefixe'
+                                ],
+                            ],
+                        },
+                    }
+                },                
+                'less-loader'
+            ]
+        },
+
+    ]
+}
+
+```
+*   同理需要使用scss，需要安装  sass sass-loader ，其他同less， 参考webpack [ https://webpack.docschina.org/loaders/sass-loader/ ]
 
 ##### 3.3 处理css3前缀
+*   有些css3 语法需要兼容低版本浏览器，可以通过插件来自动给css3样式加上前缀
+*   npm i postcss-loader  autoprefixer -D
+*   具体实现参考 3.2， 执行npm run build:dev 打包构建后，就会将css less 等文件打包进man.js里
+*   【后续会抽离和压缩css 待处理】
 
 ##### 3.4 babel预处理js兼容
+*   有一些浏览器不兼容识别 一些最新的js标准语法或者非标准语法，则需要使用到babel来转换成低版本可识别的标准语法
+*   npm i babel-loader @babel/core @babel/preset-env core-js -D
+*   具体可以参考这个文章[babel 那些事 <https://juejin.cn/post/6992371845349507108> ]
+    *   babel-loader 加载最新的js代码转换成es5
+    *   @babel/core  babel编译的核心包
+    *   @babel/preset-env  banebn编译的预设，可以转换最新的js语法
+    *   core-js  使用低版本js语法模拟高版本的库
+```javascript
+            {
+                test: /.(ts|tsx)$/,
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                        // 预设执行的顺序从右往左，先解析ts再处理jsx,最后使用babel转换高版本的js语法成为低版本的es5语法
+                        presets: [
+                            [
+                                '@babel/preset-env',
+                                {
+                                    // 设置兼容目标浏览器版本,这里可以不写,babel-loader会自动寻找上面配置好的文件.browserslistrc
+                                    // "targets": {
+                                    //  "chrome": 35,
+                                    //  "ie": 9
+                                    // },
+                                    "useBuiltIns": "usage", // 根据配置的浏览器兼容,以及代码中使用到的api进行引入polyfill按需添加
+                                    "corejs": 3, // 配置使用core-js低版本
+                                },
+                            ],
+
+
+                            '@babel/preset-react',
+                            '@babel/preset-typescript'
+                        ]
+                    }
+                }
+            },
+
+```
+*   为了避免webpack配置过大，可以把babel的配置移出到 babel.confog.js文件中
+```javascript
+// babel.config.js 
+// 预设执行的顺序从右往左，先解析ts再处理jsx
+module.exports = {
+    presets: [
+
+        [
+            '@babel/preset-env',
+            {
+                // 设置兼容目标浏览器版本,这里可以不写,babel-loader会自动寻找上面配置好的文件.browserslistrc
+                // "targets": {
+                //  "chrome": 35,
+                //  "ie": 9
+                // },
+                "useBuiltIns": "usage", // 根据配置的浏览器兼容,以及代码中使用到的api进行引入polyfill按需添加
+                "corejs": 3, // 配置使用core-js低版本
+            },
+        ],
+
+
+        '@babel/preset-react',
+        '@babel/preset-typescript'
+    ]
+}
+
+```
+*   修改webpack.base.js 中关于babel的配置
+```javascript
+{
+    // ...
+    module:{
+        rules:[
+            {
+                test:/.(ts|tsx)/,
+                use:'babel-loader'
+            }
+        
+            // ...
+        ]
+
+    }
+}
+
+```
 
 ##### 3.5 babel处理非标准语法，如装饰器
+*   创建 src/components/Class.tsx 组件，并在App.tsx引入使用
+*   关于装饰器的知识点，详情可参考[<https://blog.csdn.net/z_e_n_g/article/details/131099112>]
 
+```javascript
+// src/components/Class.tsx
+import React, { PureComponent } from "react";
+
+
+// 类装饰器  接受参数-类本身
+function addAge(Target: Function) {
+    // 为类Class 添加属性age和对应的值
+    Target.prototype.age = 18
+}
+
+// 使用类装饰器
+@addAge
+class Class extends PureComponent {
+    age?: number
+
+    render() {
+
+        return <div>
+            <h4>这是类组件--age=={ this.age }</h4>
+        </div>
+    }
+}
+
+export default Class
+```
+
+*   要支持装饰器，需要配置ts装饰器支持
+``` javascript 
+// tsconfig.json
+{
+    "compilerOptions":{
+        // 开启装饰器支持使用
+        "experimentalDecorators":true
+    }
+}
+
+```
+
+*   装饰器语法事非标准语法，需要babel支持转换
+```javascript 
+// 有报错ERROR in ./src/components/Class.tsx
+Module build failed (from ./node_modules/babel-loader/lib/index.js):
+SyntaxError: D:\study\demo\react18-webpack5-ts-template\src\components\Class.tsx: Support for the experimental syntax 'decorators' isn't currently enabled (11:1):
+   9 |
+  10 | // 使用类装饰器
+> 11 | @addAge
+     | ^
+  12 | class Class extends PureComponent {
+  13 |     age?: number
+  14 |
+
+Add @babel/plugin-proposal-decorators (https://github.com/babel/babel/tree/main/packages/babel-plugin-proposal-decorators) to the 'plugins' section of your Babel 
+config to enable transformation.
+
+```
+
+*   npm i @babel/plugin-proposal-decorators -D
+*   并且配置babel.config.js
+```javascript
+module.exports = {
+    //...
+
+    "plugins":[
+       ['@babel/plugin-proposal-decorators',{'legacy':true}]
+    ]
+}
+
+```
+*   到这就可以使用装饰器了
+  
 ##### 3.6 复制public文件夹
+*   本地开发时，public文件夹内的静态资源文件通过devServer托管了，打包生产环境时，就需要把public中需要的文件复制一份到dist内,就不需要webpack静心解析。
+*   npm i copy-webpack-plugin -D
+*   添加 public/favicon.ico图标
 
-##### 3.7 处理图片类型文件
+```javascript
+// webpack.prod.js
+const path = require('path')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
 
-##### 3.8 处理字体和媒体类型文件
+module.exports = {
+
+    plugins: [
+        new CopyWebpackPlugin({
+            patterns: [
+                {
+                    from: path.resolve(__dirname, '../public'),
+                    to: path.resolve(__dirname, '../dist'),
+                    filter: (path) => {
+                        // 过滤掉index.html , 在webpack.base.js 中已经被引用过了
+                        return !path.includes('.html')
+                    }
+                }
+            ]
+        })
+    ]
+}
+
+```
+*   执行 npm run build:dev 后，会将public中的favicon.ico 文件复制到dist目录下
+
+```html
+
+<!-- 在index.html 中 使用绝对路径引入favicon.ico -->
+<head>
+     <!-- 绝对路径引入图标文件 -->
+  <link data-n-head="ssr" rel="icon" type="image/x-icon" href="/favicon.ico">
+</head>
+```
+
+#### 3.7 处理 alias 路径引用别名配置
+*   配置webpack 中的  resolve.alias对象
+
+```javascript
+    // webpack.base.js
+    module.exports = {
+        resolve:{
+            alias:{
+                // 引用文件时，@会指向 src目录下的路径
+                "@":path.resolve(__dirname,'../src')
+            }
+        }
+    }
+```
+*   同时需要配置tsconfig.json
+```json
+// tsconfig.json
+
+{
+    "compilerOptions":{
+        "baseUrl": ".",  //用于设置解析非相对模块名称的基本目录
+        "paths": { //用于设置模块名到基于 baseUrl 的路径映射,与baseUrl搭配，基于baseUrl
+            "@/*": [
+                "src/*"
+            ]
+        }
+    }
+}
+```
+*   这样就可以通过 @/xxx  来访问src下的文件了
+
+##### 3.8 处理图片类型文件
+*   webpack 5 内置插件 使用，asset-module 来处理图片，字体，媒体文件等其他类型的文件，webpack 4 需借助 file-loader url-loader 等
+*   参考 asset-module \[<https://webpack.docschina.org/guides/asset-modules/>]
+*   创建 src/assets/images 目录并存放几张大小不一的图片，并在App.tsx  App.css中引用
+*   当出现引用图片  找不到模块“./assets/imgs/zhitiao.jpg ”或其相应的类型声明,需要创建 images.d.ts 类型声明文件，具体参考代码【我没碰到】
+
+```javascript
+// webpack.base.js
+module.exports = {
+    module:{
+        rules:[
+            //...
+            // 解析图片文件类型
+            {
+                test: /.(jpg|png|jpeg|gif|svg)$/,
+                type: 'asset', // type选择asset
+                parser: {
+                    dataUrlCondiction: {
+                        maxSize: 8 * 1024 // 8kb以内的文件用 base64的形式注入代码，超过复制到资源包内
+                    }
+                },
+                generator:{
+                    filename:'static/imgs/[name][ext]' // 指定超过大小的图片被输出的目录和文件名
+                }
+            }
+        ]
+    }
+}
+
+```
+
+*   本地结果： 可以看到 小的图片时base64格式引入，大的时绝对路径引入
+*   构建结果： 超过限制的图片被输出到dist.static.iamges 下，小的生产base64注入js中
 
 
-### 4. 配置模块热替换
+##### 3.9 处理字体和媒体类型文件
+*   同3.8 处理图片资源
+```javascript
+// webpack.base.js
+module.exports = {
+    module:{
+        rules:[
+            //...
+            // 处理字体文件
+            {
+                test: /.(woff2?|eot|ttf|otf)$/,
+                type: 'asset',
+                parser: {
+                    dataUrlCondition: {
+                        maxSize: 10 * 1024
+                    }
+                },
+                generator: {
+                    filename: 'static/fonts/[name][ext]'
+                }
+            },
+            // 处理媒体文件
+            {
+                test: /.(mp4|webm|ogg|mp3|wav|flac|aac)$/,
+                type: 'asset',
+                parser: {
+                    dataUrlCondition: {
+                        maxSize: 10 * 1024
+                    }
+                },
+                generator: {
+                    filename: 'static/media/[name][ext]'
+                }
+            },
+        ]
+    }
+}
 
+```
+
+
+### 4. 配置模块热更新
+##### 4.1 前边配置了webpack-dev-server 通过开始devServer.hot 开启了模块热替换
+*   webpack5 内置了热替换功能，webpack4 还需要搭配HotModuleReplacementPlugin 使用
+*   但是这只是针对css less 等注入到代码中的样式的变更不需要刷新，修改App.tsx 时，本地页面还是会刷新
+#### 4.2 处理在不刷新页面的情况下，更新react组件并保留组件状态
+*   npm i @pmmmwh/react-refresh-webpack-plugin react-refresh -D
+*   @pmmmwh/react-refresh-webpack-plugin 依赖react-refresh ，所有一并安装
+*   配置react 热更新插件，并修改webpack.dev.js
+```javascript
+// webpack.dev.js
+const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
+
+module.exports = {
+    plugins:[
+        new ReactRefreshWebpackPlugin()
+    ]
+}
+
+```
+*   为babel 配置react-refresh属性插件，修改babel.config.js
+```javascript
+// babel.config.js
+const isDev = process.env.NODE_ENV === 'development'
+
+module.exports = {
+    "plugins":[
+        isDev &&require.resolve('react-refresh/babel') //  开发模式才启动react热更新插件
+    ].filter(Boolean) // 过滤空值
+}
+```
+
+*   修改 App.tsx 增加count 状态 和修改状态的按钮，测试修改App.tsx时，页面是否刷新，是否保持react组件状态
+
+```javascript
+// src/App.tsx
+// ...
+
+const App = () => {
+    const [count, AddCount] = useState<number>(0)
+
+    return <div>
+        <h2 className="h2">webpack5-react-ts</h2>
+        <h3 className="h3">count--+{count}</h3>
+        <button onClick={() => AddCount(count => count + 1)}>add count</button>
+        {/* ... */}
+    </div>
+}
+
+```
+*   至此可以无感知更新开发环境
 
 ### 5. 优化 构建速度
 

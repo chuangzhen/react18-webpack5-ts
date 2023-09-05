@@ -1,7 +1,11 @@
 // webpack.base.js
 
 const path = require('path')
+
+const webpack = require('webpack')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
+const { type } = require('os')
+
 
 module.exports = {
     // 配置入口文件
@@ -24,18 +28,72 @@ module.exports = {
             // @babel/preset-typescript  将ts转换成js  ， @babel/preset-react 识别jsx语法， 搭配核心包 babel-loader @babel/core
             {
                 test: /.(ts|tsx)$/,
-                use: {
-                    loader: 'babel-loader',
-                    options: {
-                        // 预设执行的顺序从右往左，先解析ts再处理jsx
-                        presets: [
-                            '@babel/preset-react',
-                            '@babel/preset-typescript'
-                        ]
-                    }
-                }
+                use: 'babel-loader'
             },
 
+
+            // 解析css less
+            {
+                test: /.(css|less)$/,
+                use: [
+                    'style-loader',
+                    'css-loader',
+                    // 新增 处理css3前缀
+                    {
+                        loader: 'postcss-loader',
+                        options: {
+                            postcssOptions: {
+                                plugins: [
+                                    [
+                                        'autoprefixer'
+                                    ],
+                                ],
+                            },
+                        }
+                    },
+                    'less-loader'
+                ]
+            },
+
+            // 解析图片文件类型
+            {
+                test: /.(jpg|png|jpeg|gif|svg)$/,
+                type: 'asset', // type选择asset
+                parser: {
+                    dataUrlCondition: {
+                        maxSize: 8 * 1024 // 8kb以内的文件用 base64的形式注入代码，超过复制到资源包内
+                    }
+                },
+                generator: {
+                    filename: 'static/images/[name][ext]' // 指定超过大小的图片被输出的目录和文件名
+                }
+            },
+            // 处理字体文件
+            {
+                test: /.(woff2?|eot|ttf|otf)$/,
+                type: 'asset',
+                parser: {
+                    dataUrlCondition: {
+                        maxSize: 10 * 1024
+                    }
+                },
+                generator: {
+                    filename: 'static/fonts/[name][ext]'
+                }
+            },
+            // 处理媒体文件
+            {
+                test: /.(mp4|webm|ogg|mp3|wav|flac|aac)$/,
+                type: 'asset',
+                parser: {
+                    dataUrlCondition: {
+                        maxSize: 10 * 1024
+                    }
+                },
+                generator: {
+                    filename: 'static/media/[name][ext]'
+                }
+            },
         ]
     },
 
@@ -43,7 +101,7 @@ module.exports = {
     resolve: {
         // 模块在import require 引入文件时，可以省略后缀，webpack会从头开始依次解析extensions数组配置的文件后缀类型，匹配上则跳过后续
         // 也不要配太多类型，查找匹配文件类型也要费时间内存
-        extensions: ['.js','.ts', '.tsx'],
+        extensions: ['.js', '.ts', '.tsx'],
 
         // 配置路径别名  ,让模块引入变得简单
         alias: {
@@ -56,10 +114,17 @@ module.exports = {
         // npm i html-webpack-plugin -D 将webpack构建后的资源注入到该插件生成的html文件中
         new HtmlWebpackPlugin({
             // 复制template路径下的文件作为模板
-            template: path.resolve(__dirname,'../public/index.html'),
+            template: path.resolve(__dirname, '../public/index.html'),
             // 将script 注入到body中，自动注入静态资源
-            inject:true
+            inject: true
+        }),
+
+        // 要转成json字符粗,再注入环境变量到全局环境变量process.env.xxx里,
+        new webpack.DefinePlugin({
+            "process.env.NODE_EVN": JSON.stringify(process.env.NODE_ENV),
+            "process.env.BASE_ENV": JSON.stringify(process.env.BASE_ENV)
         })
+
 
     ]
 
