@@ -2,6 +2,8 @@ const path = require('path')
 
 const { merge } = require('webpack-merge')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const CssMinimizerWebpackPlugin = require('css-minimizer-webpack-plugin')
 
 const baseConfig = require('./webpack.base.js')
 
@@ -20,6 +22,16 @@ module.exports = merge(baseConfig, {
                     }
                 }
             ]
+        }),
+
+        new MiniCssExtractPlugin({
+            filename:'static/css/[name].css'  // 指定生产环境抽离的css的路径
         })
-    ]
+    ],
+
+    optimization:{
+        minimizer:[
+            new CssMinimizerWebpackPlugin() // 压缩css
+        ]
+    }
 })

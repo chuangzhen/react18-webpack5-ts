@@ -696,8 +696,279 @@ const App = () => {
 
 ### 5. 优化 构建速度
 
+#### 5.1 耗时分析
+*   npm i speed-measure-webpack-plugin -D
+*   新增配置 webpack.analyze.js 
+*   开启耗时插件,只分析生产环境的配置结果
+```javascript
+
+const SpeedMeasureWebpackPlugin = require('speed-measure-webpack-plugin')
+const smp = new SpeedMeasureWebpackPlugin()
+const {merge} = require('webpack-merge')
+const prodConfig  = require('./webpack.prod.js')
+
+// smp.wrap()函数包裹需要被分析的webpack 配置对象
+module.exports =smp.wrap(merge(prodConfig,{
+
+    plugins:[
+        new SpeedMeasureWebpackPlugin()
+    ]
+}))
+```
+
+*   修改package.json 的scripts 添加 分析脚本指令
+```json
+{
+    "scripts":{
+        "analyze":"cross-env NODE_ENV=production BASE_ENV=production webpack -c build/webpack.analyze.js"
+    }
+}
+```
+*   执行  npm run analyze 
+``` bash
+结果：
+ SMP  ⏱
+General output time took 3.35 secs
+
+ SMP  ⏱  Plugins
+HtmlWebpackPlugin took 0.125 secs
+CopyPlugin took 0.023 secs
+DefinePlugin took 0.003 secs
+
+ SMP  ⏱  Loaders
+babel-loader took 0.826 secs
+  module count = 3
+modules with no loaders took 0.706 secs
+  module count = 176
+css-loader, and
+postcss-loader, and
+less-loader took 0.695 secs
+  module count = 2
+html-webpack-plugin took 0.011 secs
+  module count = 1
+style-loader, and
+css-loader, and
+postcss-loader, and
+less-loader took 0.01 secs
+  module count = 2
+```
+
+#### 5.2 持久化缓存
+*   webpack 4 有babel-loader cache-loader 等其他的缓存策略，但是webpack5内置了缓存策略
+*   开启 cache.type = 'filesystem' 即可开启webpack5缓存策略，更具体策略参考
+    *   \[<https://webpack.docschina.org/configuration/cache/>]
+    *   \[<https://segmentfault.com/a/1190000041726881?sort=votes>]
+
+```javascript
+// webpack.base.js
+module.exports = {
+
+    cache:{
+        type:'filesystem',
+        buildDependencies: {
+        // This makes all dependencies of this file - build dependencies
+        config: [__filename],
+        // 默认情况下 webpack 与 loader 是构建依赖。来获取最新配置以及所有依赖项
+        },
+    }
+}
+
+```
+```bash
+结果： 开启后速度快90%
+开启前： General output time took 4.53 secs
+开启后： General output time took 0.449 secs
+```
+
+
+#### 5.3 多线程解析loader
+*   npm i thread-loader -D
+*   开启多线程也需要时间消化性能，所有多线程适用于较大型项目
+*   thread-loader 不支持 mini-css-extract-plugin ，所有也不支持css多线程解析
+*   在需要开启多线程解析的loader配置对象中，需要将thread-loader放置在其他loader之前，其他loader会被放置到一个独立的worker池中运行
+```javascript
+// webpack.base.js
+
+module.exports = {
+    // ...
+    module:{
+        rules:[
+
+            {
+                test:/.(ts|tsx)$/,
+                // babel-loader比较费事，开启多线程解析
+                use:['thread-loader','babel-loader']
+            }
+        ]
+    }
+}
+
+
+```
+
+#### 5.4 缩小loader作用范围
+*   通过 include exclude 来限制loader的作用范围
+    *   include : [path] 只接解析该选项内的路径的文件
+    *   exclude : [path] 不解析选项内的路径，优先级更高
+*   给css less 限制include只解析src内的，抽离postcss-loader的配置项到 postcss.config.js内
+*   还可以将css 和less的loader配置拆分，更精准解析不同的样式文件
+```javascript
+// webpack.base.js
+
+module.exports = {
+    module:{
+        rules:[
+             {
+                test: /.(css|less)$/,
+                include:[path.resolve(__dirname,'../src')],
+                use: [
+                    'style-loader',
+                    'css-loader',
+                    // 自动增加css3 前缀
+                    'postcss-loader',
+                    'less-loader'
+                ]
+            },
+        ]
+    }
+}
+
+```
+
+#### 5.5 缩小模块搜索范围
+*    resolve.modules 告诉webpack ，解析模块（require/import 引用）时，该去指定的目录下查找，不要超出指定范围，避免出现本地当前项目没有安装模块，父级目录安装没报错，发布到线上后找不到模块出错的问题。
+*    详情查找：\[<https://webpack.docschina.org/configuration/resolve/#resolvemodules>]
+```javascript
+// webpack.base.js
+
+module.exports = {
+    // 使用pnpm不要设置这个，有幽灵依赖问题
+    resolve:{
+        modules:[path.resolve(__dirname,'../node_modules')]
+    }
+}
+
+```
+
+#### 5.6 devtool配置
+*   **本地开发中**，当出现错误的时候，会定位错误在devServer编译后的代码上，而不是源代码
+*   source-map 映射编译后代码和源码关系，有助于明确的错误定位，webpack5通过devtool属性开启source-map 功能
+*   生产环境不建议使用source-map，暴露源码，也增加文件内存
+*   devtool的命名规则是： **^(inline-|hidden-|eval-)?(nosources-)?(cheap-?(module-))source-map$**
+
+| 关键字 | 描述                                     |
+| ------ | ---------------------------------------- |
+| inline | 代码内通过dataUrl引入SourceMap           |
+| hidden | 生成SourceMap ,但不使用                  |
+| eval   | 以eval执行，通过dataUrl形式引入SourceMap |
+| cheap  | 只定位到行，不定位到列                   |
+| module | 展示源码中的错误位置                     |
+
+*   开发环境source-map 配置建议是 **eval-cheap-module-source-map**
+*   参考\[<http://www.noobyard.com/article/p-ggbfqdrx-dw.html>]
+
 
 ### 6. 优化构建后的结果文件
+
+#### 6.1 webpack包分析工具
+*   npm i webpack-bundle-analyzer -D
+*   修改webpack.analyze.js
+```javascript
+// webpack.analyze.js
+
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
+
+// smp.wrap(config) 函数包裹待分析配置对象
+module.exports = smp.wrap(merge(prodConfig, {
+
+    plugins:[
+
+        new BundleAnalyzerPlugin() // 配置分析打包结果插件
+    ]
+})) 
+
+// 运行  npm run analyze 后， 跳转 http://127.0.0.1:8888/可以看到构建后的各个包大小和关系
+```
+#### 6.2 抽离css
+*   npm i mini-css-extract-plugin -D
+*   基于webpack5，可以为每个包含css的js，创建一个抽离的css文件，支持css和source-map 的按需加载，与css-loader搭配使用
+*   修改 webpack.base.js 中的css相关的loader
+```javascript
+//webpack.base.js
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+
+const isDev = process.env.NODE_ENV ==='development'
+module.exports = {
+    //...
+
+    module:{
+        rules:[
+            {
+                test: /.(css|less)$/,
+                include: [path.resolve(__dirname, '../src')],
+                use: [
+                    // 开发环境不需要抽离css
+                    isDev ? 'style-loader' : MiniCssExtractPlugin.loader,
+                    'css-loader',
+                    // 自动增加css3 前缀
+                    'postcss-loader',
+                    'less-loader'
+                ]
+            },
+        ]
+    }
+}
+```
+*   修改 webpack.prod.js 实例化 mini-css-extract-plugin 插件，设置css要抽离输出的路径
+``` javascript
+// webpack.prod.js
+
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+
+module.exports = {
+    plugins:[
+        //...
+
+        new MiniCssExtractPlugin({
+            filename:'static/css/[name].css'
+        })
+    ]
+}
+
+// 执行 npm run build:dev
+// dist/static 出现css目录以及main.css文件
+// 但是css文件没有压缩
+```
+
+#### 6.3 压缩css
+*   npm i css-minimizer-webpacl-plugin
+*   通过optimization.minimizer 实例化压缩css插件
+*   修改 webpack.prod.js
+```javascript
+// webpack.prod.js
+const CssMinimizerWebpackPlugin = require('css-minimizer-webpack-plugin')
+
+module.exports = {
+    //...
+     optimization:{
+        minimizer:[
+            new CssMinimizerWebpackPlugin() // 压缩css
+        ]
+    }
+}
+// dist/static/main.css 被压缩了，
+// 但是 dist/static/js/main.js 压缩效果失效
+
+```
+
+#### 6.4 压缩js
+#### 6.5 合理配置打包文件hash
+#### 6.6 分割第三方包和公共模块
+#### 6.7 tree-shaking 清理未引用js
+#### 6.8 tree-shaking 清理未引用css
+#### 6.9 资源懒加载
+#### 6.10 资源预加载
+#### 6.11 打包生成gzip压缩文件
 
 
 

@@ -4,8 +4,9 @@ const path = require('path')
 
 const webpack = require('webpack')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
-const { type } = require('os')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 
+const isDev = process.env.NODE_ENV === 'development'
 
 module.exports = {
     // 配置入口文件
@@ -28,29 +29,20 @@ module.exports = {
             // @babel/preset-typescript  将ts转换成js  ， @babel/preset-react 识别jsx语法， 搭配核心包 babel-loader @babel/core
             {
                 test: /.(ts|tsx)$/,
-                use: 'babel-loader'
+                use: ['thread-loader', 'babel-loader']
             },
 
 
             // 解析css less
             {
                 test: /.(css|less)$/,
+                include: [path.resolve(__dirname, '../src')],
                 use: [
-                    'style-loader',
+                    // 生产环境才抽离css
+                    isDev ? 'style-loader' : MiniCssExtractPlugin.loader,
                     'css-loader',
-                    // 新增 处理css3前缀
-                    {
-                        loader: 'postcss-loader',
-                        options: {
-                            postcssOptions: {
-                                plugins: [
-                                    [
-                                        'autoprefixer'
-                                    ],
-                                ],
-                            },
-                        }
-                    },
+                    // 自动增加css3 前缀
+                    'postcss-loader',
                     'less-loader'
                 ]
             },
@@ -107,6 +99,9 @@ module.exports = {
         alias: {
             '@': path.resolve(__dirname, '../src')
         },
+
+        // 限制webpack查找第三方模块的范围，使用pnpm不要设置这个，有幽灵依赖问题
+        modules: [path.resolve(__dirname, '../node_modules')]
     },
 
     // 配置插件，webpack 在构建的不同声明周期的钩子函数中会执行不同的插件
@@ -126,6 +121,15 @@ module.exports = {
         })
 
 
-    ]
+    ],
+    // 开启缓存策略
+    cache: {
+        type: 'filesystem',
+        buildDependencies: {
+            // This makes all dependencies of this file - build dependencies
+            config: [__filename],
+            // 默认情况下 webpack 与 loader 是构建依赖。来获取最新配置以及所有依赖项
+        },
+    }
 
 }

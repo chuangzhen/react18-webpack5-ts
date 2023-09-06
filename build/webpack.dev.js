@@ -11,7 +11,7 @@ module.exports = merge(baseConfig, {
     // 设置开发模式
     mode: 'development',
     // eval 形成执行代码，dataUrl的形式引入sourcemap  cheap 定位到行  module 定位模块位置
-    devtool: "eval-cheap-module-source-map", // 源码调试模式，
+    devtool: "eval-cheap-module-source-map", // 源码调试模式-定位行，
 
     // 设置本地开发服务器，可以启动热更新（有文件修改时本地会自动刷新）
     // npm i webpack-dev-server  -D
