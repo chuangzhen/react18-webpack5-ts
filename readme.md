@@ -1333,8 +1333,11 @@ module.exports = {
 *   执行 npm run build:dev 查看dist/js/下出现了venders.xxx.js.gz的文件，大小为60k, 而原来的vernders.xxx.js 包大小为179k.
 *   执行 serve dist ，可以看到浏览器的network中加载的venders.xxx 的大小为60k作用，提示是  61.3kb transferred over network,resource size 183kb
 
-
-
+## 7. 常用社区插件完善
+#### 7.1 添加 ant design v5 UI 组件
+#### 7.2 添加 react-router功能
+#### 7.3 添加 请求api功能
+#### 7.4 添加本地Porxy功能
 
 
 
