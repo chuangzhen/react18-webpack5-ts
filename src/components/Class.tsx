@@ -1,6 +1,5 @@
 import React, { PureComponent } from "react";
 
-
 // 类装饰器  接受参数-类本身
 function addAge(Target: Function) {
     // 为类Class 添加属性age和对应的值

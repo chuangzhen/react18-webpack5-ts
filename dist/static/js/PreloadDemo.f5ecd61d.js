@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkreact18_webpack5_ts_template=self.webpackChunkreact18_webpack5_ts_template||[]).push([[235],{5893:(e,t,a)=>{a.r(t),a.d(t,{default:()=>c});var l=a(7294);const c=function(){return l.createElement("div",null,l.createElement("h2",null,"我是Preload 组件"))}}}]);

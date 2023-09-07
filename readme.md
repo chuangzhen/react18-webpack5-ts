@@ -1,7 +1,8 @@
 ## 创建 基于 react18-webpack5-ts的项目模板
+## 本记录是参考大佬的文章记录的学习笔记 \[<https://juejin.cn/post/7111922283681153038#heading-0>], 感谢大哥
 ### 1. 初始化配置&创建目录结构
 *   npm init -y
-*   创建readme.md 文件
+*   创建readme.md文件
 *   按以下项目模板创建目录结构和对应的文件
 ```bash
 ├── build
@@ -11,7 +12,8 @@
 ├── public
 │   └── index.html # html模板
 ├── src
-|   ├── App.tsx 
+|   |── pages 
+|   ├   ├── App.tsx 
 │   └── index.tsx # react应用入口页面
 ├── tsconfig.json  # ts配置
 └── package.json
@@ -74,7 +76,7 @@ npm i webpack webpack-cli @types/webpack @types/react @types/react-dom  typescri
 }
 
 ```
-*   添加src/App.tsx 首页内容(随意)
+*   添加src/pages/App.tsx 首页内容(随意)
 
 *   添加src/index.tsx 根容器内容
 
@@ -82,7 +84,7 @@ npm i webpack webpack-cli @types/webpack @types/react @types/react-dom  typescri
 import React from "react";
 import { creatRoot } from 'react-dom/client'
 
-import App from './App'
+import App from './pages/App'
 
 const root = document.getElementById('root')
 if (root) {
@@ -283,15 +285,15 @@ module.exports = merge(baseConfig, {
 ```
 
 ##### 3.2 处理css 和 less 或者scss 文件
-*   添加App.css App.less 文件,若干样式，在App.tsx 引入,
+*   在pages目录下添加App.css App.less 文件,若干样式，在App.tsx 引入,
 ```javascript
 // 出现如下报错等
-ERROR in ./src/App.less 1:0
+ERROR in ./src/pages/App.less 1:0
 Module parse failed: Unexpected token (1:0)
 You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders> .h3{
 |     font-size: 30px;
 |     font-weight: bold;
- @ ./src/App.tsx 3:0-20
+ @ ./src/pages/App.tsx 3:0-20
  @ ./src/index.tsx 3:0-24 7:60-63
 ```
 *   webpack 默认只识别js，识别不了css和less，需要对应的loader来解析css和less
@@ -677,7 +679,7 @@ module.exports = {
 *   修改 App.tsx 增加count 状态 和修改状态的按钮，测试修改App.tsx时，页面是否刷新，是否保持react组件状态
 
 ```javascript
-// src/App.tsx
+// src/pages/App.tsx
 // ...
 
 const App = () => {
@@ -960,15 +962,376 @@ module.exports = {
 // 但是 dist/static/js/main.js 压缩效果失效
 
 ```
-
 #### 6.4 压缩js
+*   webpack 开启 mode=production 模式时，会自动开启内置插件**terser-webpack-plugin**压缩js，支持多线程。
+*   当手动设置optimization.minimizer压缩css时，自动压缩js会失效,则需要手动安装开启js压缩
+*   npm i terser-webpack-plugin -D
+*   参考 \[<https://webpack.docschina.org/plugins/terser-webpack-plugin/>]
+*   修改webpack.prod.js
+```javascript 
+// webpack.prod.js
+const TerserWebpackPlugin = require('terser-webpack-plugin')
+
+module.exports = {
+    //...
+
+    optimization: {
+        minimizer: [
+            //...
+            new TerserWebpackPlugin({ // js压缩
+                parallel: true, // 开启多线程
+                terserOptions: {
+                    compress: {
+                        pure_funcs: ["console.log"] // 压缩时，过滤删除该函数
+                    }
+                }
+            })
+        ]
+    }
+}
+
+```
+
 #### 6.5 合理配置打包文件hash
+*   文件名hash值是浏览器缓存的重要策略之一，合理使用hash配置文件缓存，可以提高页面的加载速度，减少服务器压力
+*   webpack打包文件hash分3种
+    * hash: 只要有文件变更，整个项目的hash都改变，所有文件用同一个hash
+    * chunkhash: 同一个入口文件及其相关依赖模块 解析构建成生产对应的chunk代码块和chunkhash值，当文件本身或者依赖模块发生改动，则该chunkhash也会改动。**适用于splitChunk分割的代码块等**
+    * contenthash:  当文件内容发生变动，则contenthash就会发生变动，**适用于一些不常改动的单独文件如图片，css,媒体资源等不常改动的部分** 
+*   hash是在输出文件配置时配置的，格式是 **[name][hash:8][ext]**
+| 关键字      | 描述                   |
+| ----------- | ---------------------- |
+| ext         | 文件后缀（带.）        |
+| name        | 文件名                 |
+| path        | 文件的相对路径         |
+| folder      | 文件所在目录           |
+| hash        | 每次构建都生产唯一hash |
+| chunkhash   | 根据chunk生产hash      |
+| contenthash | 根据文件生产hash       |
+
+
+*   修改webpack.base.js 配置
+```javascript
+// webpack.base.js
+
+module.exports = {
+    // ...
+    output:{
+        filename:'static/js/[name].[chunkhash:8][ext]'
+    }
+
+
+
+    module:{
+        rules:[
+            {
+                //图片
+                generator:{
+                    filename:'static/images/[name].[contenthash:8][ext]'
+                }
+            },
+            {
+                //字体
+                generator:{
+                    filename:'static/fonts/[name].[contenthash:8][ext]'
+                }
+            },
+            {
+                //媒体
+                generator:{
+                    filename:'static/media/[name].[contenthash:8][ext]'
+                }
+            }
+        ]
+    }
+}
+
+```
+*   修改webpack.prod.js 抽离css的contenthash
+```javascript
+// webpack.prod.js
+module.exports = {
+    plugins:[
+        // ...
+         new MiniCssExtractPlugin({
+            filename: 'static/css/[name].[contenthash:8].css'  // 指定生产环境抽离的css的路径
+        })
+
+    ]
+}
+```
 #### 6.6 分割第三方包和公共模块
+*   第三方包不常改动，可以单独分割成一个独立的js包，对应的chunkhash也不会经常改动，有助于浏览器缓存优化
+*   公共的模块代码也可以抽离独立，避免多次打包，减少打包后的包体积
+*   webpack 通过 optimization.splitChunks 来分割构建后的js包
+*   参考\[<https://webpack.docschina.org/plugins/split-chunks-plugin/>]
+*   修改 webpack.prod.js
+```javascript
+// webpack.prod.js 
+
+module.exports = {
+    optimization:{
+        // ...
+
+        // 分割代码
+        splitChunks: {
+            cacheGroups: {// 区分不同的缓存组
+                venders: {
+                    test: /node_modules/, // 匹配node_modules目录的文件
+                    name: 'venders',  // 分割后的chunk包命名，chunkhash会自动加上
+                    minChunks: 1, // 拆分前必须共享模块的最新chunks数
+                    chunks: 'initial', // 只提取初始化时能获取到的，不管异步
+                    minSize: 0, // 代码提交大于0便提取出来
+                    priority: 1, // 提取优先级，模块会被提取到优先级高的chunks组种，默认-20
+                },
+                common: {
+                    name: 'common',
+                    minChunks: 2, // 有被2个地方共享使用到就提取出来
+                    chunks: 'initial', // 提取初始化能获取的模块，忽略异步
+                    minSize: 0, //代码超过0bytes就提取
+                }
+            }
+        }
+    }
+}
+
+// npm run build:dev 执行构建编辑后，可以看到dist/static/js中抽离出来了vendersxxxx.js 和 mainxxx.js文件，
+// 修改App.tsx, 再编译，main的hash值发生改变，venders不改变
+```
+
 #### 6.7 tree-shaking 清理未引用js
+*   webpack内置了mode=production时，会删除在编译生成bundle中没有引用到的js，以达到清理没用到的js引用，降低构建后包大小的作用
+*   同时，mode=production 也会开启编译后的代码压缩，但是当手动开启optimization.minimizer时，压缩功能失效，需要手动引入
+
 #### 6.8 tree-shaking 清理未引用css
+*   继css从js抽离，压缩后，还会存在有css定义后未被使用或者废弃的css存在，也会占用内存大小，可以通过purgecss-webpack-plugin 清理未使用的废弃的css 和 mini-css-extract-plugin（抽离css已使用到）搭配使用，通过 glob-all 来选择哪些文件的id类名标签名称需要检测清理
+*   npm i purgecss-webpack-plugin glob-all -D
+*   参考purgecss-webpack-plugin \[<https://purgecss.com/plugins/webpack.html>]
+
+```javascript
+    // webpack.prod.js
+    // 4 5版本的引入方式有差别，当前时5版本的
+const {PurgeCSSPlugin} = require('purgecss-webpack-plugin')
+const globalAll = require('glob-all')
+
+module.exports = {
+
+    plugins:[
+        //...
+
+        // 清理净化未使用到的css
+        new PurgeCSSPlugin({
+            safelist: {
+                standard: [/^ant-/, /^safe-/],// 白名单列表，跳过以ant- safe-开头的类名和id
+            },
+            // 通过globAll.sync（arr） 通过查找arr数组内元素指定的路径文件
+            paths: globAll.sync([
+                `${path.resolve(__dirname, '../src')}/**/*.tsx`,
+                `${path.resolve(__dirname, '../src')}/**/*.jsx`,
+                `${path.resolve(__dirname, '../public')}/index.html`,
+            ])
+        })
+    ]
+}
+
+```
+*   给 App.css 加上一些没有用的，和 以safe- ant-开头的css选择器
+```javascript
+// 给/src/pages/App.less 新增如下没有用到的样式
+.nouse {
+    font-size: 99px;
+}
+
+.safe-nouse {
+    color: beige;
+}
+
+.ant-nouse {
+    font-weight: 500;
+}
+// 先屏蔽 webpack.prod.js 中给css压缩的 optimization.minimizer
+// 重新构建 npm run build:dev
+// 可以看到 dist/static/css/mainxxx.css中，.nouse选择器样式被清理，ant- safe-开头的样式被保留
+// 恢复 webpack.prod.js 中  关于css的压缩功能
+```
+
 #### 6.9 资源懒加载
-#### 6.10 资源预加载
+*   webpack 通过 import('xxx') 动态引入模块
+*   react 通过 React.lazy(dynamic Import)  懒加载 动态引入的模块，配合Suspense 组件可以实现 loading效果，具体可以看react官网
+*   修改/src/pages/App.tsx
+```javascript
+import React, { useState, lazy, Suspense } from "react";
+
+
+import BigImg from '@/assets/images/zhitiao.jpg'
+import smallImg from "@/assets/images/hs.jpg";
+
+// import Class from "@/components/Class";
+
+const LazyClass = lazy(() => import('@/components/Class'))
+
+// import './App.css'
+import './App.less'
+
+
+
+const App = () => {
+    const [count, addCount] = useState<number>(0)
+    const [show, setShow] = useState<boolean>(false)
+
+    const handleClick = () => {
+        import('./App.css')
+        setShow(true)
+    }
+
+    return <div>
+        <h2 className="h2">webpack5-react-ts</h2>
+        <h3 className="h3">count {count}</h3>
+        <button onClick={() => addCount(count => count + 1)}>add count</button>
+        <h3>NODE_ENV={process.env.NODE_ENV}</h3>
+        <h3>BASE_ENV={process.env.BASE_ENV}</h3>
+
+        {/* 正常加载组件 */}
+        {/* <Class /> */}
+
+        <img style={{ width: 100, height: 100 }} src={BigImg} alt="" srcSet="" />
+        <img style={{ width: 50, height: 80 }} src={smallImg} alt="" srcSet="" />
+
+        <div>
+            <div className="smallImg">小</div>
+            <div className="bigImg">大11</div>
+        </div>
+
+        <button onClick={handleClick}>点击动态加载css文件，展示懒加载组件</button>
+
+        {show&&<Suspense fallback={() => <>懒加载组件loading中</>}>
+            <div>
+                <h4>以下是懒加载组件</h4>
+                <LazyClass />
+            </div>
+        </Suspense>}
+
+    </div>
+}
+
+export default App
+
+
+// 点击按钮，查看浏览器network，可以看到动态加载css和Class组件
+
+```
+#### 6.10 资源预加载，预获取
+*   上边react的懒加载的实现依靠延迟计算思想，通过代码拆分来实现非核心组件部分延迟加载，react 提供了Suspense组件实现过度效果，但还是会存在资源较大时，延迟较久。
+*   可以通过 link标签的  rel属性中的 prefetch和preload来实现资源的预先加载和预获取，
+    *   prefetch  **预获取** ，对将来页面中很有必要的资源，告诉浏览器**空闲时**提前请求获取
+    *   preload   **预加载** ，对当前页面很重要的资源，告诉浏览器一点要加载这些资源
+*   webpack v4.6 之后支持 prefetch 和 preload ，**但是这两者都有一些兼容性的问题**
+*   做法：只需要在import 动态引入资源时，加上webpack的特定注释即可
+*   webpack 特定注释如下
+```javascript
+// 单个目标
+import(
+  /* webpackChunkName: "my-chunk-name" */ // 资源打包后的文件chunkname
+  /* webpackPrefetch: true */ // 开启prefetch预获取 【二选一】
+  /* webpackPreload: true */ // 开启preload预加载【二选一】
+  './module'
+);
+
+```
+
+*   测试： 在components 下创建 Prefetch.tsx 和 Preload.tsx 组件
+```javascript
+// src/components/Prefetch.tsx
+import React from "react";
+const Prefetch = () => {
+    return <div>
+        <h2>我是prefetch 组件</h2>
+    </div>
+}
+export default Prefetch
+
+// src/components/Preload.tsx
+import React from "react";
+const Preload = () => {
+    return <div>
+        <h2>我是Preload 组件</h2>
+    </div>
+}
+export default Preload
+
+```
+
+*   在 src/pages/App.tsx 中 动态引用，使用对应的pretch 和preload注释
+```javascript
+// /src/pages/App.tsx
+
+// prefetch 
+const PrefetchDemo = lazy(() => import(
+     /* webpackChunkName: "Prefetch" */ // 资源打包后的文件chunkname
+     /* webpackPrefetch: true */ // 开启prefetch预获取 
+     '@/components/Prefetch'
+))
+// preload 
+const PreloadDemo = lazy(() => import(
+     /* webpackChunkName: "PreloadDemo" */ // 资源打包后的文件chunkname,该组件会单独打包一个chunk文件出来
+     /* webpackPreload: true */ // 开启preload预加载
+     '@/components/Preload'
+))
+
+
+
+//...
+{show&&<Suspense fallback={() => <>懒加载组件loading中</>}>
+            <div>
+                <h4>以下是懒加载组件</h4>
+                <LazyClass />
+
+                <h2>以下是预加载预请求组件</h2>
+                <PrefetchDemo />
+                <PreloadDemo />
+            </div>
+        </Suspense>}
+
+//...
+
+```
+*   执行打包后 serve dist访问本地打包后的资源，通过network可以看到，第一次加载时，Prefetch.xxx.js包 预获取好，点击展示预加载组件时，Prefetch.xx.js 的**size 是 served from prefetch cache**,同时preload  失败，只有js的prefetch才成功 **【待研究】**
+
+
 #### 6.11 打包生成gzip压缩文件
+*   现在大部分浏览器都支持解析gz类型文件，可通过gzip生成gz类型文件，减少浏览器加载文件资源大小
+*   一般通过nginx 配置 gzip:on 即可开启服务器压缩生成gzip 文件，
+*   webpack也可以通过 compression-webpack-plugin 插件实现 编译时生成gzip文件，可以免去服务器临时生成，减少服务器压力
+*   npm i compression-webpack-plugin -D
+*   参考\[<https://www.webpackjs.com/plugins/compression-webpack-plugin>]
+*   修改webpack.prod.js ，加载生成gzip文件功能
+```javascript
+// webpack.prod.js
+
+const CompressionWebpackPlugin = require('compression-webpack-plugin')
+
+module.exports = {
+    // ...
+
+    plugins:[
+
+         //...
+         // 生成gzip
+        new CompressionWebpackPlugin({
+            test: /.(js|css)$/, // 只生成css,js压缩文件
+            filename: '[path][base].gz', // 文件命名
+            algorithm: 'gzip', // 压缩格式,默认是gzip
+            test: /.(js|css)$/, // 只生成css,js压缩文件
+            threshold: 10240, // 只有大小大于该值的资源会被处理。默认值是 10k
+            minRatio: 0.8 // 压缩率,默认值是 0.8
+        })
+         
+    ]
+}
+
+```
+*   执行 npm run build:dev 查看dist/js/下出现了venders.xxx.js.gz的文件，大小为60k, 而原来的vernders.xxx.js 包大小为179k.
+*   执行 serve dist ，可以看到浏览器的network中加载的venders.xxx 的大小为60k作用，提示是  61.3kb transferred over network,resource size 183kb
 
 
 

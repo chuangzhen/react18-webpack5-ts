@@ -14,7 +14,7 @@ module.exports = {
 
     // 配置打包后的文件输出路径
     output: {
-        filename: 'static/js/[name].js', // 输出的js文件的地址
+        filename: 'static/js/[name].[chunkhash:8].js', // 输出的js文件的地址
         path: path.join(__dirname, '../dist'), // 打包结果输出路径
         clean: true, // 每次构建都会清理dist 目录，webpack4需要配置clean-webpack-plugin
         publicPath: '/'  //打包后文件的公共前缀
@@ -57,7 +57,7 @@ module.exports = {
                     }
                 },
                 generator: {
-                    filename: 'static/images/[name][ext]' // 指定超过大小的图片被输出的目录和文件名
+                    filename: 'static/images/[name].[contenthash:8][ext]' // 指定超过大小的图片被输出的目录和文件名
                 }
             },
             // 处理字体文件
@@ -70,7 +70,7 @@ module.exports = {
                     }
                 },
                 generator: {
-                    filename: 'static/fonts/[name][ext]'
+                    filename: 'static/fonts/[name].[contenthash:8][ext]'
                 }
             },
             // 处理媒体文件
@@ -83,7 +83,7 @@ module.exports = {
                     }
                 },
                 generator: {
-                    filename: 'static/media/[name][ext]'
+                    filename: 'static/media/[name].[contenthash:8][ext]'
                 }
             },
         ]
