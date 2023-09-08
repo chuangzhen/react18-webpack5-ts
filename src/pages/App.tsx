@@ -1,4 +1,5 @@
 import React, { useState, lazy, Suspense } from "react";
+import { useRouteLoaderData } from "react-router-dom";
 
 // import Class from "@/components/Class";
 // import './App.css'
@@ -6,6 +7,7 @@ import './App.less'
 
 const LazyClass = lazy(() => import('@/components/Class'))
 
+// prefetch preload 兼容性问题较大，还是不建议使用
 // prefetch 
 const PrefetchDemo = lazy(() => import(
      /* webpackChunkName: "Prefetch" */ // 资源打包后的文件chunkname
@@ -26,6 +28,7 @@ const App = () => {
     const [count, addCount] = useState<number>(0)
     const [show, setShow] = useState<boolean>(false)
 
+    console.log('useRouteLoaderData===',useRouteLoaderData('root'))
     const handleClick = () => {
         import('./App.css')
         setShow(true)

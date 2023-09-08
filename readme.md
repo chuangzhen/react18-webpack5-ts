@@ -1334,10 +1334,19 @@ module.exports = {
 *   执行 serve dist ，可以看到浏览器的network中加载的venders.xxx 的大小为60k作用，提示是  61.3kb transferred over network,resource size 183kb
 
 ## 7. 常用社区插件完善
-#### 7.1 添加 ant design v5 UI 组件
-#### 7.2 添加 react-router功能
-#### 7.3 添加 请求api功能
-#### 7.4 添加本地Porxy功能
+#### 7.1 添加 react-router功能
+*   npm i react-router-dom -S
+*   react-router-dom v6.4版本之后，新增了crateBroswerRouter 等API， 可以在路由配置上耦合 响应 数据请求和html
+*   参考\[<https://reactrouter.com/en/main/routers/create-browser-router>]
+#### 7.2 添加 请求api功能
+*   推荐使用umi-request
+#### 7.3 添加本地Porxy功能
+*   npm i http-middleware-proxy -D
+#### 7.4 UI组件看情况
+*   ant-design / ant-design-mobile / Material UI
+#### 7.5 移动端适配看情况
+
+
 
 
 
