@@ -5,20 +5,22 @@ import { useRouteLoaderData } from "react-router-dom";
 // import './App.css'
 import './App.less'
 
+import { getIndex,getAudio } from "@/utils/api";
+
 const LazyClass = lazy(() => import('@/components/Class'))
 
 // prefetch preload 兼容性问题较大，还是不建议使用
 // prefetch 
 const PrefetchDemo = lazy(() => import(
-     /* webpackChunkName: "Prefetch" */ // 资源打包后的文件chunkname
-     /* webpackPrefetch: true */ // 开启prefetch预获取 
-     '@/components/Prefetch'
+    /* webpackChunkName: "Prefetch" */ // 资源打包后的文件chunkname
+    /* webpackPrefetch: true */ // 开启prefetch预获取 
+    '@/components/Prefetch'
 ))
 // preload 
 const PreloadDemo = lazy(() => import(
-     /* webpackChunkName: "PreloadDemo" */ // 资源打包后的文件chunkname
-     /* webpackPreload: true */ // 开启preload预加载
-     '@/components/Preload'
+    /* webpackChunkName: "PreloadDemo" */ // 资源打包后的文件chunkname
+    /* webpackPreload: true */ // 开启preload预加载
+    '@/components/Preload'
 ))
 
 
@@ -28,11 +30,19 @@ const App = () => {
     const [count, addCount] = useState<number>(0)
     const [show, setShow] = useState<boolean>(false)
 
-    console.log('useRouteLoaderData===',useRouteLoaderData('root'))
-    const handleClick = () => {
+    console.log('useRouteLoaderData===', useRouteLoaderData('root'))
+    const handleClick = async () => {
         import('./App.css')
         setShow(true)
+        // const res = await getIndex()
+        // console.log(res,'==res==');
+        
+        const a = await getAudio()
+        console.log(a,'==audio==')
+
     }
+
+    
 
     return <div>
         <h2 className="h2">webpack5-react-ts</h2>
@@ -51,7 +61,7 @@ const App = () => {
 
         <button onClick={handleClick}>点击动态加载css文件，展示懒加载组件</button>
 
-        {show&&<Suspense fallback={() => <>懒加载组件loading中</>}>
+        {show && <Suspense fallback={() => <>懒加载组件loading中</>}>
             <div>
                 <h4>以下是懒加载组件</h4>
                 <LazyClass />

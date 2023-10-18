@@ -1340,8 +1340,28 @@ module.exports = {
 *   参考\[<https://reactrouter.com/en/main/routers/create-browser-router>]
 #### 7.2 添加 请求api功能
 *   推荐使用umi-request
+*   axios 封装
 #### 7.3 添加本地Porxy功能
-*   npm i http-middleware-proxy -D
+*   npm i http-proxy-middleware -D
+     *   如果是使用  CRA 创建的react项目，通过 http-proxy-middleware插件, 配合 src/setupProxy.js 文件， 创建本地代理（多个代理）
+*   使用webpack-dev-server开启本地服务器，可以在webpack的devServer中 配置proxy对象属性
+```javascript
+// build/webpack.dev.js
+
+devServer :{
+    //...
+
+    proxy:{
+        "/api":{
+            target:"目标服务器的域名",
+            changeOrigin:true , // 允许跨域
+            pathRewrite: { '^/api': '' } // 将以/api 开头的请求重写
+        },
+        // "/api2":{...} //可以配多个代理地址
+    }
+}
+
+```
 #### 7.4 UI组件看情况
 *   ant-design / ant-design-mobile / Material UI
 #### 7.5 移动端适配看情况

@@ -22,6 +22,13 @@ module.exports = merge(baseConfig, {
         historyApiFallback: true, //解决histort 404文件，碰到404错误时，会加载index.html文件
         static: {
             directory: path.resolve(__dirname, '../public') // 压缩并托管静态文件
+        },
+        proxy: {
+            '/api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                pathRewrite: { '^/api': '' }
+            },
         }
     },
 

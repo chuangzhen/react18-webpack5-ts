@@ -58,6 +58,10 @@ export const routerConfig: Array<RouteObject> = [
             }
         },
         element: <Login />
+    },
+    {
+        path: '/img',
+        element: <Page2 />
     }
 ]
 
