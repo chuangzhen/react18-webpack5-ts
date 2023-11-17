@@ -16,7 +16,7 @@ export const routerConfig: Array<RouteObject> = [
         loader: async () => {
             await new Promise((res) => setTimeout(() => {
                 res(12)
-            }, 2000))
+            }, 1000))
 
             return {
                 // 权限可以通过 api获取，

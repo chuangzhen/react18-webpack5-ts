@@ -25,6 +25,7 @@ module.exports = merge(baseConfig, {
         },
         proxy: {
             '/api': {
+                // target: 'https://react-nodejs-chatgpt-tutorial.vercel.app',
                 target: 'http://localhost:8000',
                 changeOrigin: true,
                 pathRewrite: { '^/api': '' }

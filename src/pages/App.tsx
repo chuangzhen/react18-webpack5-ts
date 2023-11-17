@@ -5,7 +5,7 @@ import { useRouteLoaderData } from "react-router-dom";
 // import './App.css'
 import './App.less'
 
-import { getIndex,getAudio } from "@/utils/api";
+import { getIndex, getAudio } from "@/utils/apis";
 
 const LazyClass = lazy(() => import('@/components/Class'))
 
@@ -34,15 +34,19 @@ const App = () => {
     const handleClick = async () => {
         import('./App.css')
         setShow(true)
-        // const res = await getIndex()
-        // console.log(res,'==res==');
-        
-        const a = await getAudio()
-        console.log(a,'==audio==')
+        getIndexResult()
+        // getIndexResult()
+
+        // const a = await getAudio()
+        // console.log(a,'==audio==')
 
     }
 
-    
+    const getIndexResult = async () => {
+        const res = await getIndex()
+        console.log('==res==');
+    }
+
 
     return <div>
         <h2 className="h2">webpack5-react-ts</h2>
@@ -61,7 +65,7 @@ const App = () => {
 
         <button onClick={handleClick}>点击动态加载css文件，展示懒加载组件</button>
 
-        {show && <Suspense fallback={() => <>懒加载组件loading中</>}>
+        {show ? <Suspense fallback={<>懒加载组件loading中</>}>
             <div>
                 <h4>以下是懒加载组件</h4>
                 <LazyClass />
@@ -70,7 +74,7 @@ const App = () => {
                 <PrefetchDemo />
                 <PreloadDemo />
             </div>
-        </Suspense>}
+        </Suspense> : null}
 
     </div>
 }
